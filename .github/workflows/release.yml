@@ -116,7 +116,7 @@ jobs:
             PREFIX="https://example.invalid/"
           fi
           printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
-            --ed-key-file - --download-url-prefix "$PREFIX" "$DIR"
+            --ed-key-file - --embed-release-notes --download-url-prefix "$PREFIX" "$DIR"
           grep -q 'sparkle:edSignature' "$DIR/appcast.xml" || { echo "appcast has no signature"; exit 1; }
           cp "$DIR/appcast.xml" build/appcast.xml
 
