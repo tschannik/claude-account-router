@@ -28,6 +28,7 @@ final class Manager: ObservableObject {
     @Published var handler: String = ""
     @Published var error: String?
     @Published var showAdd = false
+    @Published var pendingLink: URL?
 
     var selfID: String { Bundle.main.bundleIdentifier ?? "dev.yannik.claude-accounts" }
     var routingOn: Bool { handler == selfID }
@@ -281,20 +282,27 @@ final class Manager: ObservableObject {
         setRouting(true)
     }
 
-    // MARK: "which account?" chooser for claude:// links
+    // MARK: "which account?" chooser for claude:// links (shown inside the main window, see ContentView)
 
     func route(_ url: URL) {
         guard url.scheme == "claude" else { return }
-        guard !accounts.isEmpty else { error = "Add an account first."; NSApp.activate(ignoringOtherApps: true); return }
-        let alert = NSAlert()
-        alert.messageText = "Open this link in which account?"
-        alert.informativeText = url.absoluteString
-        let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 240, height: 26))
-        popup.addItems(withTitles: accounts.map(\.name))
-        alert.accessoryView = popup
-        alert.addButton(withTitle: "Open"); alert.addButton(withTitle: "Cancel")
-        NSApp.activate(ignoringOtherApps: true)
-        guard alert.runModal() == .alertFirstButtonReturn, let a = accounts.first(where: { $0.name == popup.titleOfSelectedItem }) else { return }
+        guard !accounts.isEmpty else { error = "Add an account first."; showMainWindow(); return }
+        log("link received: \(url.absoluteString)")
+        pendingLink = url
+        showMainWindow()
+    }
+
+    func openPendingLink(in a: Account) {
+        guard let url = pendingLink else { return }
+        pendingLink = nil
         Task { await deliver(url, to: a) }
+    }
+
+    private func showMainWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        for w in NSApp.windows where w.canBecomeMain {
+            if w.isMiniaturized { w.deminiaturize(nil) }
+            w.makeKeyAndOrderFront(nil)
+        }
     }
 }

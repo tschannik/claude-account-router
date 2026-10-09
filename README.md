@@ -35,7 +35,7 @@ Requires macOS 13 or later and [Claude Desktop](https://claude.ai/download) in `
 
 - **Start / Show**: starts an account, or brings it to the front if it is already running. Every account has its own
   window, its own sign-in and its own data.
-- **Ask which account for links**: turn this on and `claude://` links open a small chooser instead of going to a
+- **Ask which account for links**: turn this on and `claude://` links ask you right in the app window instead of going to a
   random window. If the chosen account is not running, it is started first.
 - **Launchers**: the `...` menu of an account can create `Claude <name>.app` in `~/Applications/Claude Accounts`, with
   the Claude icon and a coloured letter badge, for Dock, Spotlight and Raycast.

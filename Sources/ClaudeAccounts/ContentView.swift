@@ -53,6 +53,7 @@ struct ContentView: View {
     @ObservedObject private var updates = Updates.shared
     @State private var newName = ""
     @State private var firstName = "personal"
+    @State private var pulse = false
     @State private var happyUntil = Date.distantPast
     private let tick = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
@@ -65,15 +66,18 @@ struct ContentView: View {
                 firstRun
             } else {
                 mascotRow
+                if let link = m.pendingLink { linkCard(link).padding(.horizontal, 20).padding(.bottom, 10) }
                 ScrollView {
                     VStack(spacing: 10) {
                         ForEach(m.accounts) { row($0) }
                         ForEach(m.importable(), id: \.dir) { importCard($0) }
+                            .opacity(m.pendingLink != nil ? 0.35 : 1).disabled(m.pendingLink != nil)
                     }.padding(.horizontal, 20).padding(.vertical, 2)
                 }
                 .frame(height: listHeight)
                 SectionLabel("Links").padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 6)
                 routingCard.padding(.horizontal, 20).padding(.bottom, 20)
+                    .opacity(m.pendingLink != nil ? 0.35 : 1).disabled(m.pendingLink != nil)
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
@@ -100,9 +104,10 @@ struct ContentView: View {
             Spacer()
             if !m.accounts.isEmpty {
                 Button { newName = ""; m.showAdd = true } label: { Label("Add account", systemImage: "plus") }
-                    .buttonStyle(.borderedProminent).controlSize(.large)
+                    .buttonStyle(.borderedProminent).controlSize(.large).disabled(m.pendingLink != nil)
             }
         }
+        .opacity(m.pendingLink != nil ? 0.5 : 1)
         .padding(.horizontal, 20).padding(.top, 26).padding(.bottom, 6)
     }
 
@@ -130,6 +135,7 @@ struct ContentView: View {
 
     private var bubbleText: String {
         let n = m.accounts.count, up = m.running.count
+        if m.pendingLink != nil { return "Which account should open this link?" }
         if updates.available { return "A new version is ready. See the app menu." }
         if up == 0 { return "Hi! Pick an account to start." }
         if up == n { return n == 1 ? "All set, it's running." : "All \(n) running." }
@@ -152,8 +158,12 @@ struct ContentView: View {
                     .background(Capsule().fill(isUp ? Color.green.opacity(0.13) : Color.primary.opacity(0.06)))
                 }
                 Spacer()
-                Button(isUp ? "Show" : "Start") { m.startReportingErrors(a) }
-                    .buttonStyle(.bordered).controlSize(.large).foregroundStyle(isUp ? Color.primary : Color.accentColor)
+                if m.pendingLink != nil {
+                    Button("Open link") { m.openPendingLink(in: a) }.buttonStyle(.borderedProminent).controlSize(.large)
+                } else {
+                    Button(isUp ? "Show" : "Start") { m.startReportingErrors(a) }
+                        .buttonStyle(.bordered).controlSize(.large).foregroundStyle(isUp ? Color.primary : Color.accentColor)
+                }
                 Menu {
                     Button(m.hasLauncher(a) ? "Recreate launcher" : "Create launcher in Applications") { m.makeLauncher(a) }
                     Button("Show data folder") {
@@ -166,6 +176,8 @@ struct ContentView: View {
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             }
         }
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .strokeBorder(Color.accentColor, lineWidth: 2).opacity(m.pendingLink != nil ? 1 : 0))
     }
 
     private func importCard(_ f: (name: String, dir: String)) -> some View {
@@ -181,6 +193,36 @@ struct ContentView: View {
                 Button("Add as “\(f.name)”") { m.addImported(name: f.name, dir: f.dir) }.buttonStyle(.bordered)
             }
         }
+    }
+
+    /// Unmissable call to action: filled accent banner with a pulsing ring, while the rest of the window steps back.
+    private func linkCard(_ url: URL) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle().stroke(Color.white.opacity(0.7), lineWidth: 2).frame(width: 34, height: 34)
+                        .scaleEffect(pulse ? 1.35 : 1).opacity(pulse ? 0 : 0.9)
+                    Circle().fill(Color.white.opacity(0.22)).frame(width: 34, height: 34)
+                    Image(systemName: "arrow.down.right.and.arrow.up.left").font(.system(size: 15, weight: .bold))
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Choose an account below").font(.system(size: 16, weight: .bold))
+                    Text("A claude:// link is waiting for you.").font(.callout).opacity(0.9)
+                }
+                Spacer()
+                Button("Cancel") { m.pendingLink = nil }.buttonStyle(.bordered).tint(.white).keyboardShortcut(.cancelAction)
+            }
+            Text(url.absoluteString).font(.system(size: 11, design: .monospaced))
+                .lineLimit(1).truncationMode(.middle).help(url.absoluteString)
+                .padding(.horizontal, 10).padding(.vertical, 6).frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.18)))
+        }
+        .foregroundStyle(.white)
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.accentColor.gradient))
+        .shadow(color: Color.accentColor.opacity(0.45), radius: 10, y: 3)
+        .onAppear { withAnimation(.easeOut(duration: 1.3).repeatForever(autoreverses: false)) { pulse = true } }
+        .onDisappear { pulse = false }
     }
 
     private var routingCard: some View {
