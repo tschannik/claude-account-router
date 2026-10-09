@@ -16,6 +16,11 @@ name: Release
 #   APPLE_ID                        Apple ID of the developer account
 #   APPLE_APP_SPECIFIC_PASSWORD     app-specific password for that Apple ID
 #   APPLE_TEAM_ID                   10-character Team ID
+#   SPARKLE_ED_PRIVATE_KEY          contents of the Sparkle EdDSA private key file (signs auto-updates)
+#
+# Auto-update: the app reads releases/latest/download/appcast.xml, which this workflow attaches to the
+# release. GitHub only serves that URL for *published* releases, so nobody is offered an update
+# until the draft is published.
 
 on:
   push:
@@ -35,6 +40,8 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # release notes come from the commits since the previous tag
 
       - name: Version
         run: |
@@ -93,6 +100,26 @@ jobs:
           (cd build && shasum -a 256 "Claude-Accounts-$VERSION.dmg" > "Claude-Accounts-$VERSION.dmg.sha256")
           echo "DMG=$DMG" >> "$GITHUB_ENV"
 
+      - name: Appcast for auto-update
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          set -e
+          DIR=build/appcast; rm -rf "$DIR"; mkdir -p "$DIR"
+          cp "$DMG" "$DIR/"
+          # release notes shown in the update window: commit subjects since the previous tag
+          PREV="$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)"
+          { echo "## What's new"; git log --pretty='- %s' ${PREV:+$PREV..}HEAD; } > "$DIR/$(basename "${DMG%.dmg}").md"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            PREFIX="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/"
+          else
+            PREFIX="https://example.invalid/"
+          fi
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+            --ed-key-file - --download-url-prefix "$PREFIX" "$DIR"
+          grep -q 'sparkle:edSignature' "$DIR/appcast.xml" || { echo "appcast has no signature"; exit 1; }
+          cp "$DIR/appcast.xml" build/appcast.xml
+
       - name: Verify
         run: |
           set -e
@@ -105,4 +132,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes \
-            "$DMG" "$DMG.sha256"
+            "$DMG" "$DMG.sha256" build/appcast.xml

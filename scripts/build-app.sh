@@ -11,8 +11,13 @@ APP="build/Claude Accounts.app"
 swift build -c release --arch arm64 --arch x86_64
 BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/ClaudeAccounts"
 
-rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN" "$APP/Contents/MacOS/ClaudeAccounts"
+SPARKLE_FW="$(find .build/artifacts -path '*macos-arm64_x86_64/Sparkle.framework' -maxdepth 6 | head -1)"
+[ -d "$SPARKLE_FW" ] || { echo "Sparkle.framework not found (run swift build first)"; exit 1; }
+ditto "$SPARKLE_FW" "$APP/Contents/Frameworks/Sparkle.framework"
+# The app is not sandboxed, so Sparkle's XPC helper services are not needed.
+rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" "$APP/Contents/Frameworks/Sparkle.framework/XPCServices"
 "$APP/Contents/MacOS/ClaudeAccounts" --render-app-icon "$APP/Contents/Resources/AppIcon.icns"
 
 cat >"$APP/Contents/Info.plist" <<PLIST
@@ -31,6 +36,10 @@ cat >"$APP/Contents/Info.plist" <<PLIST
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>SUFeedURL</key><string>https://github.com/tschannik/claude-account-router/releases/latest/download/appcast.xml</string>
+  <key>SUPublicEDKey</key><string>7CIGgvQcCsp/x/wvEw8RZGABc3b+306wjjHYMx0szMo=</string>
+  <key>SUEnableAutomaticChecks</key><true/>
+  <key>SUScheduledCheckInterval</key><integer>86400</integer>
   <key>CFBundleURLTypes</key><array>
     <dict><key>CFBundleURLName</key><string>Claude link</string>
           <key>CFBundleURLSchemes</key><array><string>claude</string></array></dict>
@@ -40,9 +49,11 @@ cat >"$APP/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 
-if [ "$IDENTITY" = "-" ]; then
-  codesign --force --sign - "$APP"
-else
-  codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
-fi
-codesign --verify --strict "$APP" && echo "built: $APP ($VERSION)"
+# Sign inside-out: Sparkle's helpers, then the framework, then the app (hardened runtime for releases).
+FW="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+if [ "$IDENTITY" = "-" ]; then SIGN=(codesign --force --sign -); else SIGN=(codesign --force --options runtime --timestamp --sign "$IDENTITY"); fi
+"${SIGN[@]}" "$FW/Autoupdate"
+"${SIGN[@]}" "$FW/Updater.app"
+"${SIGN[@]}" "$APP/Contents/Frameworks/Sparkle.framework"
+"${SIGN[@]}" "$APP"
+codesign --verify --deep --strict "$APP" && echo "built: $APP ($VERSION)"

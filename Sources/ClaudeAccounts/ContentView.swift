@@ -52,6 +52,7 @@ struct ContentView: View {
         .onAppear { m.refresh(); m.healAgentPath() }
         .onReceive(tick) { _ in m.refresh() }
         .onChange(of: m.running.count) { n in if n > 0 { cheer() } }
+        .onReceive(Updates.shared.$found) { if $0 > Date() { happyUntil = $0 } }
         .alert("Claude Accounts", isPresented: Binding(get: { m.error != nil }, set: { if !$0 { m.error = nil } })) {
             Button("OK") { m.error = nil }
         } message: { Text(m.error ?? "") }

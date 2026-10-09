@@ -55,6 +55,12 @@ Requires macOS 13 or later and [Claude Desktop](https://claude.ai/download) in `
 
 State lives in `~/Library/Application Support/claude-accounts/` (account list `accounts.tsv`, the copies, a log).
 
+## Updates
+
+Claude Accounts updates itself with [Sparkle](https://sparkle-project.org): it checks once a day and offers new
+versions in a standard update window. Every update is signed with the project's EdDSA key and notarized by Apple.
+You can also use **Claude Accounts > Check for Updates...** in the menu bar.
+
 ## Safety
 
 - Never opens one data folder from two processes: it refuses and tells you which launcher already has it.
@@ -86,6 +92,7 @@ requests. CI builds every PR.
 
 Releases are cut by the maintainer by pushing a `v*` tag; the
 [release workflow](.github/workflows/release.yml) builds, signs, notarizes and drafts the GitHub Release.
+Publishing the draft is what makes the update visible to installed apps.
 
 ## License
 

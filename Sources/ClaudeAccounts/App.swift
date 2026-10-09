@@ -28,6 +28,11 @@ struct ClaudeAccountsApp: App {
                 .environmentObject(Manager.shared)
                 .frame(width: 520)
         }
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { Updates.shared.checkNow() }.disabled(!Updates.shared.enabled)
+            }
+        }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
     }
