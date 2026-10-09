@@ -1,0 +1,19 @@
+name: CI
+
+# Builds the app (ad-hoc signed, no secrets) on every pull request and on main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: scripts/build-app.sh
