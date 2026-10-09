@@ -27,7 +27,6 @@ struct Card<Content: View>: View {
 
 struct ContentView: View {
     @EnvironmentObject var m: Manager
-    @State private var showAdd = false
     @State private var newName = ""
     @State private var firstName = "personal"
     @State private var happyUntil = Date.distantPast
@@ -56,7 +55,7 @@ struct ContentView: View {
         .alert("Claude Accounts", isPresented: Binding(get: { m.error != nil }, set: { if !$0 { m.error = nil } })) {
             Button("OK") { m.error = nil }
         } message: { Text(m.error ?? "") }
-        .sheet(isPresented: $showAdd) { addSheet }
+        .sheet(isPresented: $m.showAdd) { addSheet }
     }
 
     // MARK: pieces
@@ -70,7 +69,7 @@ struct ContentView: View {
             }
             Spacer()
             if !m.accounts.isEmpty {
-                Button { newName = ""; showAdd = true } label: { Label("Add account", systemImage: "plus") }
+                Button { newName = ""; m.showAdd = true } label: { Label("Add account", systemImage: "plus") }
                     .controlSize(.large)
             }
         }
@@ -167,8 +166,8 @@ struct ContentView: View {
             TextField("Name, e.g. work", text: $newName).textFieldStyle(.roundedBorder).frame(width: 300)
             HStack {
                 Spacer()
-                Button("Cancel") { showAdd = false }.keyboardShortcut(.cancelAction)
-                Button("Add") { m.add(named: newName.trimmingCharacters(in: .whitespaces)); showAdd = false }
+                Button("Cancel") { m.showAdd = false }.keyboardShortcut(.cancelAction)
+                Button("Add") { m.add(named: newName.trimmingCharacters(in: .whitespaces)); m.showAdd = false }
                     .keyboardShortcut(.defaultAction).disabled(newName.isEmpty).buttonStyle(.borderedProminent)
             }
         }.padding(22).frame(width: 340)

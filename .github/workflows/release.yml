@@ -89,10 +89,7 @@ jobs:
         run: |
           set -e
           DMG="build/Claude-Accounts-$VERSION.dmg"
-          rm -rf build/stage; mkdir build/stage
-          cp -R "build/Claude Accounts.app" build/stage/
-          ln -s /Applications build/stage/Applications
-          hdiutil create -volname "Claude Accounts" -srcfolder build/stage -ov -format UDZO "$DMG"
+          scripts/make-dmg.sh "build/Claude Accounts.app" "$DMG"
           codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
           xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" --wait --timeout 30m

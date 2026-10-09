@@ -32,6 +32,7 @@ cat >"$APP/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
   <key>CFBundleVersion</key><string>${VERSION}</string>
+  <key>NSHumanReadableCopyright</key><string>© 2026 Yannik Zimmermann. MIT License.</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>NSPrincipalClass</key><string>NSApplication</string>

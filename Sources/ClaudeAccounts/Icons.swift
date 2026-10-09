@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// Badge colour, derived from the account name so it is stable across launches and machines.
 func badgeColorHex(_ name: String) -> UInt32 {
@@ -64,16 +65,23 @@ func writeBadgedIcon(base: String, to out: String, letter: String, rgb: UInt32) 
     }
 }
 
-/// The app's own icon: two overlapping account circles on an indigo tile.
+/// The mascot as a bitmap `width` pixels wide (idle pose, looking straight ahead).
+@MainActor
+func mascotImage(width: CGFloat) -> NSImage? {
+    let r = ImageRenderer(content: Mascot(happyUntil: .distantPast, scale: width / 64,
+                                          still: .init(t: 0.6, left: 0, gaze: .zero)))
+    r.scale = 1
+    return r.cgImage.map { NSImage(cgImage: $0, size: NSSize(width: $0.width, height: $0.height)) }
+}
+
+/// The app's own icon: the mascot standing on an indigo tile.
+@MainActor
 func writeAppIcon(to out: String) -> Bool {
     writeIcns(to: out) { s in
         let tile = NSRect(x: s * 0.08, y: s * 0.08, width: s * 0.84, height: s * 0.84)
         let path = NSBezierPath(roundedRect: tile, xRadius: s * 0.19, yRadius: s * 0.19)
         NSGradient(starting: nsColor(0x6366f1), ending: nsColor(0x3730a3))?.draw(in: path, angle: -60)
-        let d = s * 0.34
-        let y = s / 2 - d / 2
-        nsColor(0x0d9488).setFill(); NSBezierPath(ovalIn: NSRect(x: s * 0.5 - d * 0.88, y: y, width: d, height: d)).fill()
-        NSColor.white.withAlphaComponent(0.92).setFill()
-        NSBezierPath(ovalIn: NSRect(x: s * 0.5 - d * 0.12, y: y, width: d, height: d)).fill()
+        let w = s * 0.62
+        mascotImage(width: w)?.draw(in: NSRect(x: (s - w) / 2, y: s * 0.5 - w * 56 / 64 * 0.5 - s * 0.02, width: w, height: w * 56 / 64))
     }
 }

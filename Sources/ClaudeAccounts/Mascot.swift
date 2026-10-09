@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// A small terracotta bot that bobs, blinks, follows the mouse pointer with its eyes and hops for joy
+/// A small butter-yellow bot that bobs, blinks, follows the mouse pointer with its eyes and hops for joy
 /// when an account starts (or when poked).
 struct Mascot: View {
     var happyUntil: Date
@@ -12,8 +12,8 @@ struct Mascot: View {
     struct Still { var t: Double; var left: Double; var gaze: CGSize }
 
     private let w: CGFloat = 64, h: CGFloat = 56
-    private let fur = Color(red: 0.851, green: 0.467, blue: 0.341)   // #D97757, Claude terracotta
-    private let bodyDark = Color(red: 0.76, green: 0.38, blue: 0.27)
+    private let fur = Color(red: 0.969, green: 0.847, blue: 0.408)   // #F7D868, butter yellow
+    private let bodyDark = Color(red: 0.890, green: 0.725, blue: 0.290) // #E3B94A
     private let ink = Color(red: 0.17, green: 0.11, blue: 0.09)
 
     var body: some View {
@@ -67,9 +67,9 @@ struct Mascot: View {
         // body
         let bodyRect = CGRect(x: 8, y: 10, width: 48, height: 34)
         ctx.fill(Path(roundedRect: bodyRect, cornerRadius: 13),
-                 with: .linearGradient(Gradient(colors: [fur.opacity(0.95), fur]), startPoint: CGPoint(x: 0, y: 10), endPoint: CGPoint(x: 0, y: 44)))
+                 with: .linearGradient(Gradient(colors: [fur, fur]), startPoint: CGPoint(x: 0, y: 10), endPoint: CGPoint(x: 0, y: 44)))
         // cheeks
-        for x in [15.0, 49.0] { ctx.fill(Path(ellipseIn: CGRect(x: x - 4, y: 31, width: 8, height: 5)), with: .color(.white.opacity(0.22))) }
+        for x in [15.0, 49.0] { ctx.fill(Path(ellipseIn: CGRect(x: x - 4, y: 31, width: 8, height: 5)), with: .color(Color(red: 0.96, green: 0.50, blue: 0.43).opacity(0.38))) }
 
         // eyes
         let blinkPhase = t.truncatingRemainder(dividingBy: 4.3)

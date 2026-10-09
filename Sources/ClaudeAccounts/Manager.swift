@@ -27,6 +27,7 @@ final class Manager: ObservableObject {
     @Published var running: [String: Int] = [:]
     @Published var handler: String = ""
     @Published var error: String?
+    @Published var showAdd = false
 
     var selfID: String { Bundle.main.bundleIdentifier ?? "dev.yannik.claude-accounts" }
     var routingOn: Bool { handler == selfID }

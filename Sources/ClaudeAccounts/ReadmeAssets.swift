@@ -41,3 +41,35 @@ func renderReadmeAssets(to dir: String) -> Bool {
     return writePNG(image(.init(t: 0.6, left: 0, gaze: CGSize(width: 2, height: 0.5)), scale: 4, background: false), "mascot.png")
         && writePNG(image(.init(t: 0.6, left: 1.0, gaze: .zero), scale: 4, background: false), "mascot-happy.png")
 }
+
+/// The .dmg window background (660x520 pt; Finder's title bar and status bars cover part of it, so everything
+/// that matters stays in the top ~380 pt), written as 1x and 2x PNGs for `tiffutil` to merge.
+/// The app and Applications icons sit at (170, 195) and (490, 195), see scripts/dmg-settings.py.
+@MainActor
+func renderDmgBackground(to dir: String) -> Bool {
+    try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+    let view = ZStack {
+        LinearGradient(colors: [Color(red: 0.60, green: 0.62, blue: 0.95), Color(red: 0.55, green: 0.48, blue: 0.92)],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+        VStack(spacing: 6) {
+            Text("Claude Accounts").font(.system(size: 30, weight: .bold, design: .rounded)).foregroundStyle(.white)
+            Text("Drag the app onto Applications").font(.system(size: 15, weight: .medium)).foregroundStyle(.white.opacity(0.85))
+        }.position(x: 330, y: 66)
+        HStack(spacing: 0) {
+            ForEach(0..<5) { _ in Circle().fill(.white.opacity(0.7)).frame(width: 6, height: 6).padding(.horizontal, 5) }
+            Image(systemName: "chevron.right").font(.system(size: 26, weight: .bold)).foregroundStyle(.white.opacity(0.9)).padding(.leading, 4)
+        }.position(x: 330, y: 195)
+        Mascot(happyUntil: .distantPast, scale: 1.0, still: .init(t: 0.6, left: 0, gaze: CGSize(width: 0, height: -1.5)))
+            .position(x: 330, y: 312)
+    }.frame(width: 660, height: 520)
+
+    for (scale, name, dpi) in [(1.0, "background.png", 72.0), (2.0, "background@2x.png", 144.0)] {
+        let r = ImageRenderer(content: view)
+        r.scale = scale
+        guard let img = r.cgImage,
+              let d = CGImageDestinationCreateWithURL(URL(fileURLWithPath: dir + "/" + name) as CFURL, UTType.png.identifier as CFString, 1, nil) else { return false }
+        CGImageDestinationAddImage(d, img, [kCGImagePropertyDPIWidth: dpi, kCGImagePropertyDPIHeight: dpi] as CFDictionary)
+        guard CGImageDestinationFinalize(d) else { return false }
+    }
+    return true
+}

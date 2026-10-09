@@ -20,6 +20,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
 
+enum Links { static let repo = URL(string: "https://github.com/tschannik/claude-account-router")! }
+
+@MainActor
+func showAbout() {
+    let para = NSMutableParagraphStyle(); para.alignment = .center
+    let credits = NSMutableAttributedString(
+        string: "Run several Claude desktop accounts side by side, and send every claude:// link to the right one.\n\nUnofficial, not affiliated with Anthropic.\n",
+        attributes: [.font: NSFont.systemFont(ofSize: 11), .paragraphStyle: para, .foregroundColor: NSColor.labelColor])
+    credits.append(NSAttributedString(string: "github.com/tschannik/claude-account-router",
+        attributes: [.font: NSFont.systemFont(ofSize: 11), .paragraphStyle: para, .link: Links.repo]))
+    NSApp.activate(ignoringOtherApps: true)
+    NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+}
+
+/// "Accounts" menu: start or show each account with ⌘1...⌘9, and the link-routing switch.
+struct AccountCommands: Commands {
+    @ObservedObject var m = Manager.shared
+    var body: some Commands {
+        CommandMenu("Accounts") {
+            ForEach(Array(m.accounts.prefix(9).enumerated()), id: \.element.id) { i, a in
+                Button((m.running[a.name] != nil ? "Show " : "Start ") + a.name) { m.startReportingErrors(a) }
+                    .keyboardShortcut(KeyEquivalent(Character(String(i + 1))), modifiers: .command)
+            }
+            if !m.accounts.isEmpty { Divider() }
+            Toggle("Ask Which Account for Links", isOn: Binding(get: { m.routingOn }, set: { m.setRouting($0) }))
+        }
+    }
+}
+
 struct ClaudeAccountsApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
     var body: some Scene {
@@ -29,8 +58,20 @@ struct ClaudeAccountsApp: App {
                 .frame(width: 520)
         }
         .commands {
-            CommandGroup(after: .appInfo) {
+            CommandGroup(replacing: .appInfo) {
+                Button("About Claude Accounts") { showAbout() }
                 Button("Check for Updates…") { Updates.shared.checkNow() }.disabled(!Updates.shared.enabled)
+            }
+            CommandGroup(replacing: .newItem) {
+                Button("Add Account…") { Manager.shared.showAdd = true }.keyboardShortcut("n")
+            }
+            CommandGroup(replacing: .toolbar) {}
+            CommandGroup(replacing: .sidebar) {}
+            AccountCommands()
+            CommandGroup(replacing: .help) {
+                Link("Claude Accounts on GitHub", destination: Links.repo)
+                Link("Release Notes", destination: Links.repo.appendingPathComponent("releases"))
+                Link("Report an Issue…", destination: Links.repo.appendingPathComponent("issues/new"))
             }
         }
         .windowStyle(.hiddenTitleBar)
@@ -53,10 +94,14 @@ enum Entry {
                 }
                 exit(0)
             case "--render-app-icon": // build-time: ClaudeAccounts --render-app-icon out.icns
-                exit(args.count > 2 && writeAppIcon(to: args[2]) ? 0 : 1)
+                _ = NSApplication.shared
+                exit(args.count > 2 && MainActor.assumeIsolated({ writeAppIcon(to: args[2]) }) ? 0 : 1)
             case "--render-readme-assets": // docs build: ClaudeAccounts --render-readme-assets <dir>
                 _ = NSApplication.shared
                 exit(args.count > 2 && MainActor.assumeIsolated({ renderReadmeAssets(to: args[2]) }) ? 0 : 1)
+            case "--render-dmg-background": // build-time: ClaudeAccounts --render-dmg-background <dir>
+                _ = NSApplication.shared
+                exit(args.count > 2 && MainActor.assumeIsolated({ renderDmgBackground(to: args[2]) }) ? 0 : 1)
             default: break
             }
         }
