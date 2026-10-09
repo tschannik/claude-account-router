@@ -9,6 +9,7 @@ final class Updates: ObservableObject {
 
     /// Set when a newer version was found; the mascot hops for joy.
     @Published var found = Date.distantPast
+    @Published var available = false
 
     private let delegate = Delegate()
     private(set) var controller: SPUStandardUpdaterController?
@@ -19,7 +20,7 @@ final class Updates: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         let version = info["CFBundleShortVersionString"] as? String ?? ""
         guard info["SUFeedURL"] != nil, !version.contains("dev") else { return }
-        delegate.onFound = { [weak self] in Task { @MainActor in self?.found = Date().addingTimeInterval(1.6) } }
+        delegate.onFound = { [weak self] in Task { @MainActor in self?.found = Date().addingTimeInterval(1.6); self?.available = true } }
         controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: delegate, userDriverDelegate: nil)
     }
 

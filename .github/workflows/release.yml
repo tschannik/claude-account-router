@@ -39,7 +39,7 @@ jobs:
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0 # release notes come from the commits since the previous tag
 
@@ -104,9 +104,16 @@ jobs:
           set -e
           DIR=build/appcast; rm -rf "$DIR"; mkdir -p "$DIR"
           cp "$DMG" "$DIR/"
-          # release notes shown in the update window: commit subjects since the previous tag
-          PREV="$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)"
-          { echo "## What's new"; git log --pretty='- %s' ${PREV:+$PREV..}HEAD; } > "$DIR/$(basename "${DMG%.dmg}").md"
+          # Release notes, shown in the update window and used as the draft's text: release-notes/<version>.md
+          # if it exists, otherwise the commit subjects since the previous tag.
+          NOTES="$DIR/$(basename "${DMG%.dmg}").md"
+          if [ -f "release-notes/$VERSION.md" ]; then
+            cp "release-notes/$VERSION.md" "$NOTES"
+          else
+            PREV="$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)"
+            { echo "## What's new"; git log --pretty='- %s' ${PREV:+$PREV..}HEAD; } > "$NOTES"
+          fi
+          cp "$NOTES" build/release-notes.md
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             PREFIX="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/"
           else
@@ -128,5 +135,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes \
+          gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --notes-file build/release-notes.md \
             "$DMG" "$DMG.sha256" build/appcast.xml

@@ -25,27 +25,56 @@ struct Card<Content: View>: View {
     }
 }
 
+/// Speech bubble with a small tail on the left, pointing at the mascot.
+struct BubbleShape: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        let tail: CGFloat = 8
+        p.addRoundedRect(in: CGRect(x: r.minX + tail, y: r.minY, width: r.width - tail, height: r.height), cornerSize: CGSize(width: 12, height: 12))
+        p.move(to: CGPoint(x: r.minX + tail + 1, y: r.midY - 6))
+        p.addLine(to: CGPoint(x: r.minX, y: r.midY + 2))
+        p.addLine(to: CGPoint(x: r.minX + tail + 1, y: r.midY + 8))
+        p.closeSubpath()
+        return p
+    }
+}
+
+struct SectionLabel: View {
+    let text: String
+    init(_ t: String) { text = t }
+    var body: some View {
+        Text(text.uppercased()).font(.system(size: 11, weight: .semibold)).tracking(0.6).foregroundStyle(.secondary)
+            .padding(.leading, 4)
+    }
+}
+
 struct ContentView: View {
     @EnvironmentObject var m: Manager
+    @ObservedObject private var updates = Updates.shared
     @State private var newName = ""
     @State private var firstName = "personal"
     @State private var happyUntil = Date.distantPast
     private let tick = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             header
             if Paths.sourceApp == nil {
                 message("Claude.app not found", "Install Claude Desktop in /Applications first, then reopen this app.")
             } else if m.accounts.isEmpty {
                 firstRun
             } else {
+                mascotRow
                 ScrollView {
-                    VStack(spacing: 10) { ForEach(m.accounts) { row($0) } }.padding(.horizontal, 20).padding(.bottom, 16)
+                    VStack(spacing: 10) {
+                        ForEach(m.accounts) { row($0) }
+                        ForEach(m.importable(), id: \.dir) { importCard($0) }
+                    }.padding(.horizontal, 20).padding(.vertical, 2)
                 }
-                .frame(height: CGFloat(min(m.accounts.count, 6)) * 80 + 6) // the window grows with the list
+                .frame(height: listHeight)
+                SectionLabel("Links").padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 6)
+                routingCard.padding(.horizontal, 20).padding(.bottom, 20)
             }
-            routingCard.padding(20).padding(.top, 0)
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear { m.refresh(); m.healAgentPath() }
@@ -58,31 +87,53 @@ struct ContentView: View {
         .sheet(isPresented: $m.showAdd) { addSheet }
     }
 
+    private var listHeight: CGFloat { CGFloat(min(m.accounts.count + m.importable().count, 6)) * 80 + 6 }
+
     // MARK: pieces
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Mascot(happyUntil: happyUntil).onTapGesture { cheer() }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Claude Accounts").font(.system(size: 22, weight: .bold, design: .rounded))
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Claude Accounts").font(.system(size: 26, weight: .bold, design: .rounded))
                 Text(subtitle).font(.callout).foregroundStyle(.secondary)
             }
             Spacer()
             if !m.accounts.isEmpty {
                 Button { newName = ""; m.showAdd = true } label: { Label("Add account", systemImage: "plus") }
-                    .controlSize(.large)
+                    .buttonStyle(.borderedProminent).controlSize(.large)
             }
         }
-        .padding(.horizontal, 20).padding(.top, 28).padding(.bottom, 12)
+        .padding(.horizontal, 20).padding(.top, 26).padding(.bottom, 6)
     }
-
-    private func cheer() { happyUntil = Date().addingTimeInterval(1.6) }
 
     private var subtitle: String {
         let n = m.accounts.count
-        let up = m.running.count
         if n == 0 { return "Several Claude sign-ins, side by side" }
-        return "\(n) account\(n == 1 ? "" : "s") · \(up) running" + (m.sourceVersion.map { " · Claude \($0)" } ?? "")
+        return "\(n) account\(n == 1 ? "" : "s")" + (m.sourceVersion.map { " · Claude \($0)" } ?? "")
+    }
+
+    /// The mascot stands on the edge of the account list and comments on what is going on.
+    private var mascotRow: some View {
+        HStack(alignment: .bottom, spacing: 6) {
+            Mascot(happyUntil: happyUntil).onTapGesture { cheer() }
+            Text(bubbleText)
+                .font(.system(size: 13, weight: .medium))
+                .padding(.leading, 18).padding(.trailing, 12).padding(.vertical, 8)
+                .background(BubbleShape().fill(Color(nsColor: .controlBackgroundColor)))
+                .overlay(BubbleShape().stroke(Color.primary.opacity(0.08)))
+                .padding(.bottom, 14)
+                .animation(.easeInOut(duration: 0.2), value: bubbleText)
+            Spacer()
+        }
+        .padding(.horizontal, 20).padding(.bottom, -7).zIndex(1)
+    }
+
+    private var bubbleText: String {
+        let n = m.accounts.count, up = m.running.count
+        if updates.available { return "A new version is ready. See the app menu." }
+        if up == 0 { return "Hi! Pick an account to start." }
+        if up == n { return n == 1 ? "All set, it's running." : "All \(n) running." }
+        return "\(up) of \(n) running."
     }
 
     private func row(_ a: Account) -> some View {
@@ -90,20 +141,19 @@ struct ContentView: View {
         return Card {
             HStack(spacing: 14) {
                 BadgeView(name: a.name)
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(a.name).font(.system(size: 16, weight: .semibold))
-                    HStack(spacing: 6) {
-                        Circle().fill(isUp ? Color.green : Color.secondary.opacity(0.35)).frame(width: 7, height: 7)
-                            .shadow(color: isUp ? .green.opacity(0.6) : .clear, radius: 3)
-                        Text(isUp ? "Running" : "Not running").font(.callout).foregroundStyle(.secondary)
+                    HStack(spacing: 5) {
+                        Circle().fill(isUp ? Color.green : Color.secondary.opacity(0.45)).frame(width: 6, height: 6)
+                        Text(isUp ? "Running" : "Not running").font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(isUp ? Color.green : Color.secondary)
                     }
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Capsule().fill(isUp ? Color.green.opacity(0.13) : Color.primary.opacity(0.06)))
                 }
                 Spacer()
-                if isUp {
-                    Button("Show") { m.startReportingErrors(a) }.buttonStyle(.bordered).controlSize(.large)
-                } else {
-                    Button("Start") { m.startReportingErrors(a) }.buttonStyle(.borderedProminent).controlSize(.large)
-                }
+                Button(isUp ? "Show" : "Start") { m.startReportingErrors(a) }
+                    .buttonStyle(.bordered).controlSize(.large).foregroundStyle(isUp ? Color.primary : Color.accentColor)
                 Menu {
                     Button(m.hasLauncher(a) ? "Recreate launcher" : "Create launcher in Applications") { m.makeLauncher(a) }
                     Button("Show data folder") {
@@ -114,6 +164,21 @@ struct ContentView: View {
                     Button("Remove account…", role: .destructive) { m.remove(a) }
                 } label: { Image(systemName: "ellipsis").font(.system(size: 15, weight: .semibold)).frame(width: 26, height: 26) }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            }
+        }
+    }
+
+    private func importCard(_ f: (name: String, dir: String)) -> some View {
+        Card {
+            HStack(spacing: 12) {
+                Image(systemName: "tray.and.arrow.down").font(.system(size: 18)).foregroundStyle(.secondary).frame(width: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Found “Claude-\(f.name)”").font(.system(size: 14, weight: .semibold))
+                    Text("An earlier Claude sign-in on this Mac.").font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Not now") { m.dismissImport(dir: f.dir) }.buttonStyle(.plain).foregroundStyle(.secondary).font(.callout)
+                Button("Add as “\(f.name)”") { m.addImported(name: f.name, dir: f.dir) }.buttonStyle(.bordered)
             }
         }
     }
@@ -134,6 +199,8 @@ struct ContentView: View {
         }
     }
 
+    private func cheer() { happyUntil = Date().addingTimeInterval(1.6) }
+
     private func message(_ title: String, _ text: String) -> some View {
         VStack(spacing: 8) {
             Text(title).font(.title3.bold())
@@ -143,7 +210,6 @@ struct ContentView: View {
 
     private var firstRun: some View {
         VStack(spacing: 16) {
-            Spacer()
             Mascot(happyUntil: happyUntil, scale: 1.6).onTapGesture { cheer() }
             Text("Your current Claude sign-in becomes the first account.").font(.headline)
             Text("Add more afterwards; each one gets its own sign-in and its own copy of Claude.")
@@ -154,8 +220,7 @@ struct ContentView: View {
             }
             Button("Get started") { m.addExistingLogin(named: firstName.trimmingCharacters(in: .whitespaces)) }
                 .buttonStyle(.borderedProminent).controlSize(.large).keyboardShortcut(.defaultAction)
-            Spacer()
-        }.padding(.horizontal, 32).frame(maxWidth: .infinity).frame(height: 330)
+        }.padding(.horizontal, 32).padding(.vertical, 20).frame(maxWidth: .infinity)
     }
 
     private var addSheet: some View {

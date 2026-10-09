@@ -1,0 +1,29 @@
+name: Cleanup
+
+# Keeps Actions storage small: deletes workflow runs (and their logs) older than 14 days and all caches.
+# The release workflow uploads no artifacts, so there is nothing else to clean.
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Delete old workflow runs
+        run: |
+          CUTOFF="$(date -u -d '14 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          gh run list --limit 500 --json databaseId,createdAt,status \
+            --jq ".[] | select(.status == \"completed\" and .createdAt < \"$CUTOFF\") | .databaseId" \
+            | xargs -r -n1 gh run delete
+      - name: Delete caches
+        run: gh cache delete --all || true

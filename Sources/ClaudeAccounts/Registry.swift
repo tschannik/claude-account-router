@@ -23,6 +23,9 @@ enum Paths {
     static let agentPlist = home + "/Library/LaunchAgents/" + agentLabel + ".plist"
     static let launchServicesPrefs = home + "/Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist"
 
+    // Where earlier setups left their Claude-<name> data folders (overridable for README screenshots).
+    static let importScanDir = ProcessInfo.processInfo.environment["CLAUDE_ACCOUNTS_IMPORT_DIR"] ?? appSupport
+
     static let claudeBundleID = "com.anthropic.claudefordesktop"
 
     /// The installed Claude.app every account copy is cloned from.

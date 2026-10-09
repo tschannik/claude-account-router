@@ -146,6 +146,36 @@ final class Manager: ObservableObject {
         Account(name: name, dataDir: Paths.appSupport + "/Claude-" + name, appPath: Paths.apps + "/" + name + "/Claude.app")
     }
 
+    /// Data folders of earlier "one --user-data-dir per account" setups (~/Library/Application Support/Claude-<name>)
+    /// that are not registered yet. Only folder names are looked at, never their contents.
+    func importable() -> [(name: String, dir: String)] {
+        let known = Set(accounts.compactMap(\.dataDir))
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: Paths.importScanDir)) ?? []
+        // "Claude-3p" belongs to Claude's own third-party mode, not to an account
+        let ignored = Set(UserDefaults.standard.stringArray(forKey: "ignoredImports") ?? []).union(["Claude-3p"])
+        return names.sorted().compactMap { n in
+            guard n.hasPrefix("Claude-"), !ignored.contains(n) else { return nil }
+            let name = String(n.dropFirst("Claude-".count)), dir = Paths.importScanDir + "/" + n
+            guard Registry.validName(name), !known.contains(dir),
+                  !accounts.contains(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else { return nil }
+            return (name, dir)
+        }
+    }
+
+    func dismissImport(dir: String) {
+        let n = (dir as NSString).lastPathComponent
+        UserDefaults.standard.set((UserDefaults.standard.stringArray(forKey: "ignoredImports") ?? []) + [n], forKey: "ignoredImports")
+        objectWillChange.send()
+    }
+
+    /// Registers an existing data folder as an account (its own copy of Claude.app, the sign-in stays where it is).
+    func addImported(name: String, dir: String) {
+        let a = Account(name: name, dataDir: dir, appPath: Paths.apps + "/" + name + "/Claude.app")
+        do { try ensureCopy(a) } catch { self.error = error.localizedDescription; return }
+        accounts.append(a); Registry.save(accounts); log("imported \(name) from \(dir)")
+        makeLauncher(a)
+    }
+
     /// First account of a fresh setup: the user's existing Claude login (default data folder, original app).
     func addExistingLogin(named name: String) {
         guard let src = Paths.sourceApp else { error = "Claude.app was not found in /Applications."; return }

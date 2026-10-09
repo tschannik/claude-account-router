@@ -39,6 +39,8 @@ Requires macOS 13 or later and [Claude Desktop](https://claude.ai/download) in `
   random window. If the chosen account is not running, it is started first.
 - **Launchers**: the `...` menu of an account can create `Claude <name>.app` in `~/Applications/Claude Accounts`, with
   the Claude icon and a coloured letter badge, for Dock, Spotlight and Raycast.
+- **Earlier setups are picked up.** If you already used one `--user-data-dir` folder per account
+  (`~/Library/Application Support/Claude-<name>`), the app offers to add each one, sign-in included.
 - **Remove account** deletes the account's entry, its copy of Claude and its launcher. Your sign-in data folder
   (`~/Library/Application Support/Claude-<name>`) is never deleted.
 
@@ -92,7 +94,8 @@ requests. CI builds every PR.
 
 Releases are cut by the maintainer by pushing a `v*` tag; the
 [release workflow](.github/workflows/release.yml) builds, signs, notarizes and drafts the GitHub Release.
-Publishing the draft is what makes the update visible to installed apps.
+Publishing the draft is what makes the update visible to installed apps. The release text comes from
+`release-notes/<version>.md` (falling back to the commit list) and is used for both the draft and the update window.
 
 ## License
 

@@ -1,6 +1,13 @@
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // SwiftUI rebuilds the menu bar now and then; hide the unneeded Edit and View menus again each time.
+        NotificationCenter.default.addObserver(forName: NSApplication.didUpdateNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { hideUnneededMenus() }
+        }
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
         Task { @MainActor in
             let m = Manager.shared
@@ -18,6 +25,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+}
+
+/// Hides the Edit and View menus (found by their contents, not their titles, so it works in any language). Hidden, not
+/// removed: the Cmd-C/V/X/A shortcuts must keep working in text fields.
+@MainActor
+func hideUnneededMenus() {
+    for item in NSApp.mainMenu?.items ?? [] where !item.isHidden {
+        guard let items = item.submenu?.items else { continue }
+        let actions = items.compactMap(\.action)
+        // Edit has the standard paste action; View is left holding nothing but separators
+        if actions.contains(#selector(NSText.paste(_:))) || items.allSatisfy(\.isSeparatorItem) { item.isHidden = true }
+    }
 }
 
 enum Links { static let repo = URL(string: "https://github.com/tschannik/claude-account-router")! }
