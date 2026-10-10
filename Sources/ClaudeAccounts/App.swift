@@ -39,7 +39,7 @@ func hideUnneededMenus() {
     }
 }
 
-enum Links { static let repo = URL(string: "https://github.com/tschannik/claude-account-router")! }
+enum Links { static let repo = URL(string: "https://github.com/tschannik/claude-accounts")! }
 
 @MainActor
 func showAbout() {
@@ -47,7 +47,7 @@ func showAbout() {
     let credits = NSMutableAttributedString(
         string: "Run several Claude desktop accounts side by side, and send every claude:// link to the right one.\n\nUnofficial, not affiliated with Anthropic.\n",
         attributes: [.font: NSFont.systemFont(ofSize: 11), .paragraphStyle: para, .foregroundColor: NSColor.labelColor])
-    credits.append(NSAttributedString(string: "github.com/tschannik/claude-account-router",
+    credits.append(NSAttributedString(string: "github.com/tschannik/claude-accounts",
         attributes: [.font: NSFont.systemFont(ofSize: 11), .paragraphStyle: para, .link: Links.repo]))
     NSApp.activate(ignoringOtherApps: true)
     NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])

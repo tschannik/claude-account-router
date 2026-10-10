@@ -37,7 +37,7 @@ cat >"$APP/Contents/Info.plist" <<PLIST
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>NSHighResolutionCapable</key><true/>
-  <key>SUFeedURL</key><string>https://github.com/tschannik/claude-account-router/releases/latest/download/appcast.xml</string>
+  <key>SUFeedURL</key><string>https://github.com/tschannik/claude-accounts/releases/latest/download/appcast.xml</string>
   <key>SUPublicEDKey</key><string>7CIGgvQcCsp/x/wvEw8RZGABc3b+306wjjHYMx0szMo=</string>
   <key>SUEnableAutomaticChecks</key><true/>
   <key>SUScheduledCheckInterval</key><integer>86400</integer>
